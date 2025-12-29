@@ -4,6 +4,6 @@ CREATE TABLE IF NOT EXISTS movies (
     year INTEGER NOT NULL,
     runtime INTEGER NOT NULL,
     genres TEXT[] NOT NULL,
-    version INTEGER NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT NOW()
 );

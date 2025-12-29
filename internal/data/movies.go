@@ -1,22 +1,26 @@
 package data
 
 import (
+	"database/sql"
+	"errors"
 	"greenlight/internal/validator"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type Movie struct {
 	// since we are using BIGINT on postgreSQL it's better to use int64 here to avoid errors
 	// Go infers `int` type from os which would be int64 on 64 bit systems and int 32 on 32 bit systems
-	ID        int64     `json:"id"`
-	CreatedAt time.Time `json:"-"` // -  omits the field entirely from json response
-	Title     string    `json:"title"`
+	ID    int64  `json:"id"`
+	Title string `json:"title"`
 	// here we cap int to int32 so that it matches with postgres Integer type and avoid introducing errors when we exceed int32's upper and lower limits
 	// or integer overflow errors see >>> https://go.dev/ref/spec#Integer_overflow
-	Year    int32    `json:"year,omitzero"`    // omitzero introduced in go 1.24 removes the field if it has the zero value of the type
-	Runtime Runtime  `json:"runtime,omitzero"` // Movie runtime in minutes
-	Genres  []string `json:"genres,omitempty"` // Slice of genres for the movie (romance, comedy, etc.) omitempty useful for slices & maps
-	Version int32    `json:"version"`          // Version starts at one and will be incremented each time movie information is updated
+	Year      int32     `json:"year,omitzero"`    // omitzero introduced in go 1.24 removes the field if it has the zero value of the type
+	Runtime   Runtime   `json:"runtime,omitzero"` // Movie runtime in minutes
+	Genres    []string  `json:"genres,omitempty"` // Slice of genres for the movie (romance, comedy, etc.) omitempty useful for slices & maps
+	Version   int32     `json:"version"`          // Version starts at one and will be incremented each time movie information is updated
+	CreatedAt time.Time `json:"-"`                // -  omits the field entirely from json response
 }
 
 func ValidateMovie(v *validator.Validator, m *Movie) map[string]string {
@@ -38,5 +42,106 @@ func ValidateMovie(v *validator.Validator, m *Movie) map[string]string {
 	if !v.Valid() {
 		return v.Errors
 	}
+	return nil
+}
+
+// wrap sql.DB connection pool
+type MovieModel struct {
+	DB *sql.DB
+}
+
+func (m MovieModel) Insert(movie *Movie) error {
+	query := `
+		INSERT INTO movies (title, year, runtime, genres)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, created_at, version
+	`
+	// slice containing the values for the placeholder parameters
+	// it's good practice to put args in a slice if we are passing more than 3 args
+	// pq.Array converts []string to pq.StringArray
+	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
+	// .Scan copies values of ID, createdAt and Version from the DB
+	// .Scan can only write to a pointer type
+	return m.DB.QueryRow(query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
+}
+
+func (m MovieModel) Get(id int) (*Movie, error) {
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+
+	query := `
+		SELECT id, title, year, runtime, genres, version 
+		FROM movies
+		WHERE id = $1
+	`
+
+	// nil struct to hold data returned by the query
+	var movie Movie
+	err := m.DB.QueryRow(query, id).Scan(
+		&movie.ID,
+		&movie.Title,
+		&movie.Year,
+		&movie.Runtime,
+		pq.Array(&movie.Genres),
+		&movie.Version,
+	)
+
+	// If no matching movie was found Scan() will return sql.ErrNoRows
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+	return &movie, nil
+}
+
+func (m MovieModel) Update(movie *Movie) error {
+	query := `
+		UPDATE movies
+		SET title = $1, year = $2, runtime = $3, genres = $4, version = version + 1
+		WHERE id = $5
+		RETURNING version
+	`
+
+	args := []any{
+		movie.Title,
+		movie.Year,
+		movie.Runtime,
+		pq.Array(movie.Genres),
+		movie.ID,
+	}
+
+	return m.DB.QueryRow(query, args...).Scan(&movie.Version)
+}
+
+func (m MovieModel) Delete(id int) error {
+	if id < 1 {
+		return ErrRecordNotFound
+	}
+
+	query := `
+		DELETE FROM movies
+		WHERE id = $1
+	`
+	result, err := m.DB.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	// if rows affected is zero
+	// it means no movie with given id exists
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
 	return nil
 }
