@@ -99,10 +99,10 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	var input struct {
-		Title   string       `json:"title"`
-		Year    int32        `json:"year"`
-		Runtime data.Runtime `json:"runtime"`
-		Genres  []string     `json:"genres"`
+		Title   *string       `json:"title"`   // will be nil if no corresponding key is provided in the JSON
+		Year    *int32        `json:"year"`    // likewise
+		Runtime *data.Runtime `json:"runtime"` // likewise
+		Genres  []string      `json:"genres"`  // slices are implemented as pointers therefore their zero value is nil
 	}
 
 	err = app.readJSON(w, r, &input)
@@ -111,12 +111,24 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	movie.Title = input.Title
-	movie.Year = input.Year
-	movie.Runtime = input.Runtime
-	movie.Genres = input.Genres
+	if input.Title != nil {
+		movie.Title = *input.Title
+	}
+
+	if input.Year != nil {
+		movie.Year = *input.Year
+	}
+
+	if input.Runtime != nil {
+		movie.Runtime = *input.Runtime
+	}
+
+	if input.Genres != nil {
+		movie.Genres = input.Genres // no need to dereference a slice
+	}
 
 	v := validator.New()
+
 	if data.ValidateMovie(v, movie); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
