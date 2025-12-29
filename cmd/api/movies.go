@@ -6,6 +6,7 @@ import (
 	"greenlight/internal/data"
 	"greenlight/internal/validator"
 	"net/http"
+	"strconv"
 )
 
 func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Request) {
@@ -98,6 +99,16 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Round-trip locking
+	// a client sends a header indicating their current movie version and we check this against
+	// what we have in the database and throw an error if they don't match
+	if r.Header.Get("X-Expected-Version") != "" {
+		if strconv.Itoa(int(movie.Version)) != r.Header.Get("X-Expected-Version") {
+			app.editConflictResponse(w, r)
+			return
+		}
+	}
+
 	var input struct {
 		Title   *string       `json:"title"`   // will be nil if no corresponding key is provided in the JSON
 		Year    *int32        `json:"year"`    // likewise
@@ -136,7 +147,12 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 
 	err = app.model.Movies.Update(movie)
 	if err != nil {
-		app.internalServerErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err, data.ErrEditConflict):
+			app.editConflictResponse(w, r)
+		default:
+			app.internalServerErrorResponse(w, r, err)
+		}
 		return
 	}
 
