@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"greenlight/internal/validator"
@@ -60,9 +61,13 @@ func (m MovieModel) Insert(movie *Movie) error {
 	// it's good practice to put args in a slice if we are passing more than 3 args
 	// pq.Array converts []string to pq.StringArray
 	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
 	// .Scan copies values of ID, createdAt and Version from the DB
 	// .Scan can only write to a pointer type
-	return m.DB.QueryRow(query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
+	return m.DB.QueryRowContext(ctx, query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 }
 
 func (m MovieModel) Get(id int) (*Movie, error) {
@@ -78,7 +83,15 @@ func (m MovieModel) Get(id int) (*Movie, error) {
 
 	// nil struct to hold data returned by the query
 	var movie Movie
-	err := m.DB.QueryRow(query, id).Scan(
+
+	// context with a 3 second deadline
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+
+	// ensures that resources associated with our context will always be released before Get() method returns
+	// thereby preventing a memory leak
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
 		&movie.ID,
 		&movie.Title,
 		&movie.Year,
@@ -116,10 +129,13 @@ func (m MovieModel) Update(movie *Movie) error {
 		movie.Version,
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
 	// Prevent race condition through Optimistic locking
 	// If no matching record could be found, we know movie
 	// version has (changed or the record has been deleted) and we return a custom error
-	err := m.DB.QueryRow(query, args...).Scan(&movie.Version)
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&movie.Version)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -141,7 +157,10 @@ func (m MovieModel) Delete(id int) error {
 		DELETE FROM movies
 		WHERE id = $1
 	`
-	result, err := m.DB.Exec(query, id)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	result, err := m.DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}
