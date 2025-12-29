@@ -9,7 +9,7 @@ import (
 
 var ErrInvalidRuntimeFormat = errors.New("invalid runtime format")
 
-type Runtime int
+type Runtime int32
 
 // here we deliberately use a value receiver instead of a pointer receiver
 // because value methods can be invoked on pointers and values.

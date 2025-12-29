@@ -1,0 +1,18 @@
+services:
+  database:
+    image: postgres:18.1-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=greenlight
+      - POSTGRES_PASSWORD=W9oqWPKZpZJ8cISlvvl9EeLwwSj5
+      - POSTGRES_DB=greenlight
+    ports:
+      - '5432:5432'
+    volumes:
+      # ./postgres-data would live on the project
+      # postgres-data lives in docker storage-area 
+      # `$ docker volume ls` 
+      # `$ docker volume inspect greenlight_postgres-data`
+      - postgres-data:/var/lib/postgresql/data 
+volumes:
+    postgres-data:

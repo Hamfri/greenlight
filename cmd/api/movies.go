@@ -25,7 +25,7 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// int, float, bool, struct and array must use `&` address operator if we need a pointer
+	// primitive types such as int, float, bool, struct and array must use `&` address operator if we need a pointer
 	movie := &data.Movie{
 		Title:   input.Title,
 		Year:    input.Year,
