@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"greenlight/internal/data"
+	"greenlight/internal/validator"
 	"net/http"
 	"time"
 )
@@ -12,15 +13,31 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 	// so that they are visble to encoding/json package
 	// struct tags must match the incoming json request key
 	var input struct {
-		Title   string   `json:"title"`
-		Year    int      `json:"year"`
-		Runtime int      `json:"runtime"`
-		Genres  []string `json:"genres"`
+		Title   string       `json:"title"`
+		Year    int          `json:"year"`
+		Runtime data.Runtime `json:"runtime"`
+		Genres  []string     `json:"genres"`
 	}
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
 		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	// int, float, bool, struct and array must use `&` address operator if we need a pointer
+	movie := &data.Movie{
+		Title:   input.Title,
+		Year:    input.Year,
+		Runtime: input.Runtime,
+		Genres:  input.Genres,
+	}
+
+	// since map, channel, interface and functions are implemented as pointer types we don't require `&` addresss operator if we need a pointer
+	// since we intend to reuse the validator in other handlers it's better to
+	v := validator.New()
+	if data.ValidateMovie(v, movie); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
