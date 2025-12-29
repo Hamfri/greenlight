@@ -14,7 +14,7 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 	// struct tags must match the incoming json request key
 	var input struct {
 		Title   string       `json:"title"`
-		Year    int          `json:"year"`
+		Year    int32        `json:"year"`
 		Runtime data.Runtime `json:"runtime"`
 		Genres  []string     `json:"genres"`
 	}
@@ -53,7 +53,7 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	movies := data.Movie{
-		ID:        id,
+		ID:        int64(id),
 		CreatedAt: time.Now(),
 		Title:     "",
 		Year:      2025,
