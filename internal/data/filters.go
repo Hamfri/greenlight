@@ -28,10 +28,40 @@ func (f Filters) sortDirection() string {
 	return "ASC"
 }
 
+func (f Filters) limit() int {
+	return f.PageSize
+}
+
+// sql OFFSET records to skip
+func (f Filters) offset() int {
+	return (f.Page - 1) * f.PageSize
+}
+
 func ValidateFilters(v *validator.Validator, f Filters) {
 	v.Check(f.Page > 0, "page", "must be greater than zero")
 	v.Check(f.Page <= 10_000_000, "page", "must be less than or equal to 10 million")
 	v.Check(f.PageSize > 0, "page_size", "must be greater than zero")
 	v.Check(f.PageSize <= 100, "page_size", "must be less than or equal to 100")
 	v.Check(validator.PermittedValue(f.Sort, f.SortSafeList...), "sort", fmt.Sprintf("invalid sort value. use %v", strings.Join(f.SortSafeList, ",")))
+}
+
+type Metadata struct {
+	CurrentPage  int `json:"current_page,omitzero"`
+	PageSize     int `json:"page_size,omitzero"`
+	FirstPage    int `json:"first_page,omitzero"`
+	LastPage     int `json:"last_page,omitzero"`
+	TotalRecords int `json:"total_record,omitzero"`
+}
+
+func calculateMetaData(totalRecords, page, PageSize int) Metadata {
+	if totalRecords == 0 {
+		return Metadata{}
+	}
+	return Metadata{
+		CurrentPage:  page,
+		PageSize:     PageSize,
+		FirstPage:    1,
+		LastPage:     (totalRecords + PageSize - 1) / PageSize, // always returns an int
+		TotalRecords: totalRecords,
+	}
 }

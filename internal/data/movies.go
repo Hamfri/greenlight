@@ -74,9 +74,11 @@ func (m MovieModel) Insert(movie *Movie) error {
 // fulltext search does not support searching parts of a word eg bookshelf -> book
 // to search parts of a word consider using `pg_trgm` or `ILIKE`
 // `ILIKE` performs full table scans therefore not ideal
-func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, error) {
+func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, Metadata, error) {
+	// column names and sql keywords cannot be inserted into a query
+	// using placeholder parameters `$x` hence the use of Sprintf
 	query := fmt.Sprintf(`
-		SELECT id, title, year, runtime, genres, version, created_at
+		SELECT count(*) OVER(), id, title, year, runtime, genres, version, created_at
 		FROM movies
 		-- deprecated WHERE (LOWER(title) = LOWER($1) OR $1 = '')
 		-- to_tsvector:- splits title into lexemes and removes commonly occuring words
@@ -86,24 +88,27 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 		-- @> contains operator for PostrgreSQL arrays
 		AND (genres @> $2 OR $2 = '{}')
 		ORDER BY %s %s, id ASC
+		LIMIT $3 OFFSET $4
 	`, filters.sortColumn(), filters.sortDirection())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	args := []any{title, pq.Array(genres)}
+	args := []any{title, pq.Array(genres), filters.limit(), filters.offset()}
 	rows, err := m.DB.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, Metadata{}, err
 	}
 
 	// close resultset before GetAll returns
 	defer rows.Close()
 
+	totalRecords := 0
 	movies := []*Movie{}
 	for rows.Next() {
 		var movie Movie
 		err := rows.Scan(
+			&totalRecords,
 			&movie.ID,
 			&movie.Title,
 			&movie.Year,
@@ -113,16 +118,18 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 			&movie.CreatedAt,
 		)
 		if err != nil {
-			return nil, err
+			return nil, Metadata{}, err
 		}
 		movies = append(movies, &movie)
 	}
 	// check for errors that might have occurred in the loop
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, Metadata{}, err
 	}
 
-	return movies, nil
+	metadata := calculateMetaData(totalRecords, filters.Page, filters.PageSize)
+
+	return movies, metadata, nil
 }
 
 func (m MovieModel) Get(id int) (*Movie, error) {

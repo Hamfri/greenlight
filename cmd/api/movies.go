@@ -79,13 +79,13 @@ func (app *application) listMovieHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	movies, err := app.model.Movies.GetAll(input.Title, input.Genres, input.Filters)
+	movies, metadata, err := app.model.Movies.GetAll(input.Title, input.Genres, input.Filters)
 	if err != nil {
 		app.internalServerErrorResponse(w, r, err)
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"movies": movies}, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"movies": movies, "metadata": metadata}, nil)
 	if err != nil {
 		app.internalServerErrorResponse(w, r, err)
 	}
