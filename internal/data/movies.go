@@ -70,12 +70,20 @@ func (m MovieModel) Insert(movie *Movie) error {
 	return m.DB.QueryRowContext(ctx, query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 }
 
+// fulltext search does not support searching parts of a word eg bookshelf -> book
+// to search parts of a word consider using `pg_trgm` or `ILIKE`
+// `ILIKE` performs full table scans therefore not ideal
 func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, error) {
 	query := `
 		SELECT id, title, year, runtime, genres, version, created_at
 		FROM movies
-		WHERE (LOWER(title) = LOWER($1) OR $1 = '')
-		AND (genres @> $2 OR $2 = '{}') -- @> contains operator for PostrgreSQL arrays
+		-- deprecated WHERE (LOWER(title) = LOWER($1) OR $1 = '')
+		-- to_tsvector:- splits title into lexemes and removes commonly occuring words
+		-- simple:- converts title to lower case versions
+		-- @@ matches operator
+		WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
+		-- @> contains operator for PostrgreSQL arrays
+		AND (genres @> $2 OR $2 = '{}')
 		ORDER BY id
 	`
 
