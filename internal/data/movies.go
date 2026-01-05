@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"greenlight/internal/validator"
 	"time"
 
@@ -74,7 +75,7 @@ func (m MovieModel) Insert(movie *Movie) error {
 // to search parts of a word consider using `pg_trgm` or `ILIKE`
 // `ILIKE` performs full table scans therefore not ideal
 func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT id, title, year, runtime, genres, version, created_at
 		FROM movies
 		-- deprecated WHERE (LOWER(title) = LOWER($1) OR $1 = '')
@@ -84,8 +85,8 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 		WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '')
 		-- @> contains operator for PostrgreSQL arrays
 		AND (genres @> $2 OR $2 = '{}')
-		ORDER BY id
-	`
+		ORDER BY %s %s, id ASC
+	`, filters.sortColumn(), filters.sortDirection())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
