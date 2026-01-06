@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"net/http"
+
+	"golang.org/x/time/rate"
 )
 
 // will only recover panics that happen in the same goroutine that executed the recoverPanic middleware
@@ -22,6 +24,22 @@ func (app *application) recoverPanic(next http.Handler) http.Handler {
 				app.internalServerErrorResponse(w, r, fmt.Errorf("%v", pv))
 			}
 		}()
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *application) rateLimit(next http.Handler) http.Handler {
+	// initialize a token based bucket rate limiter
+	// min 2 requests per second
+	// max 4 requests in a single burst
+	limiter := rate.NewLimiter(2, 4)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		//  allow requests if we have not exceeded max requests in a second
+		if !limiter.Allow() {
+			app.rateLimitExceededResponse(w, r)
+			return
+		}
 
 		next.ServeHTTP(w, r)
 	})
