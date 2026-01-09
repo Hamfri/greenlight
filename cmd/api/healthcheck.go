@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-// all our handlers will be method on the application struct
+// all our handlers will be methods on the application struct
 // this is an effective way to inject dependencies to our handlers
 // without resorting to global variables or closures
 func (app *application) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
@@ -16,7 +16,9 @@ func (app *application) healthCheckHandler(w http.ResponseWriter, r *http.Reques
 		},
 	}
 
-	// js is a []byte slice containing encoded JSON
+	// simulates long running processes
+	// when testing if graceful shutdown works as expected
+	// time.Sleep(4 * time.Second)
 	err := app.writeJSON(w, http.StatusOK, env, nil)
 	if err != nil {
 		app.internalServerErrorResponse(w, r, err)
