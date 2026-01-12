@@ -40,7 +40,7 @@ func ValidatePlainTextPassword(v *validator.Validator, password string) {
 
 func ValidateUser(v *validator.Validator, user *User) map[string]string {
 	v.Check(user.Name != "", "name", "must be provided")
-	v.Check(len(user.Name) > 500, "name", "must not be more than 500 bytes long")
+	v.Check(len(user.Name) <= 500, "name", "must not be more than 500 bytes long")
 
 	ValidateEmail(v, user.Email)
 
@@ -81,7 +81,7 @@ func (m UserModel) Insert(user *User) error {
 	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.ID, &user.CreatedAt, &user.Version)
 	if err != nil {
 		switch {
-		case err.Error() == `pq: duplicate key value violates unique constraint "user_email_key"`:
+		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
 			return ErrDuplicateEmail
 		default:
 			return err
@@ -149,7 +149,7 @@ func (m UserModel) Update(user *User) error {
 	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.Version)
 	if err != nil {
 		switch {
-		case err.Error() == `pq: duplicate key value violates unique constraint "user_email_key"`:
+		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
 			return ErrDuplicateEmail
 		case errors.Is(err, sql.ErrNoRows):
 			return ErrEditConflict
