@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"flag"
 	"greenlight/internal/data"
+	"greenlight/internal/mailer"
 	"log/slog"
 	"os"
 	"time"
@@ -31,12 +32,20 @@ type config struct {
 		burst   int
 		enabled bool
 	}
+	smtp struct {
+		host     string
+		port     int
+		username string
+		password string
+		sender   string
+	}
 }
 
 type application struct {
 	config config
 	logger *slog.Logger
 	model  data.Models
+	mailer *mailer.Mailer
 }
 
 func main() {
@@ -59,6 +68,14 @@ func main() {
 	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate maximum requests per second")
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
+
+	// smtp settings
+	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", "fake-username", "SMTP username")
+	flag.StringVar(&cfg.smtp.password, "smtp-password", "fake-pwd", "SMTP password")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "fake-sender", "SMTP sender")
+
 	flag.Parse()
 
 	// structured logger that writes to the standard output stream
@@ -78,12 +95,19 @@ func main() {
 
 	logger.Info("database connection pool established")
 
+	mailer, err := mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+
 	// declare an instance of application struct
 	// containing the config struct and the logger
 	app := &application{
 		config: cfg,
 		logger: logger,
 		model:  data.NewModels(db),
+		mailer: mailer,
 	}
 
 	err = app.serve()
