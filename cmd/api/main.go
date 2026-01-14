@@ -8,6 +8,7 @@ import (
 	"greenlight/internal/mailer"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	// import pq driver so that it can register itself with the database/sql package
@@ -46,6 +47,7 @@ type application struct {
 	logger *slog.Logger
 	model  data.Models
 	mailer *mailer.Mailer
+	wg     *sync.WaitGroup
 }
 
 func main() {
@@ -108,10 +110,10 @@ func main() {
 		logger: logger,
 		model:  data.NewModels(db),
 		mailer: mailer,
+		wg:     &sync.WaitGroup{},
 	}
 
-	err = app.serve()
-	if err != nil {
+	if err = app.serve(); err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}

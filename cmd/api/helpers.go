@@ -146,3 +146,22 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 
 	return i
 }
+
+// reusable background tasks runner
+// with panic recovery
+func (app *application) background(fn func()) {
+	// this is the same to `go func(){}()`
+	// only that we are launching it using WaitGroup's Go() method instead
+	app.wg.Go(func() {
+		// can be used standalone
+		// inside goroutines to recover from panics
+		defer func() {
+			if err := recover(); err != nil {
+				app.logger.Error(fmt.Sprintf("%v", err))
+			}
+		}()
+
+		// exec the arbitrary func passed in as a param
+		fn()
+	})
+}

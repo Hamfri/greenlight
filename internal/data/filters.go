@@ -32,7 +32,7 @@ func (f Filters) limit() int {
 	return f.PageSize
 }
 
-// sql OFFSET records to skip
+// OFFSET records to skip
 func (f Filters) offset() int {
 	return (f.Page - 1) * f.PageSize
 }

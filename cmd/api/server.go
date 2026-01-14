@@ -74,10 +74,15 @@ func (app *application) serve() error {
 
 	// wait for return value from Shutdown()
 	// if it's an error there was a problem with graceful shutdown
-	err = <-shutDownError
-	if err != nil {
+	if err = <-shutDownError; err != nil {
 		return err
 	}
+
+	// Wait() prevents serve from returning to main()
+	// until Waitgroup's counter is zero.
+	// that ensures that all background processes run to completion
+	app.logger.Info("completing background tasks", "addr", srv.Addr)
+	app.wg.Wait()
 
 	// if graceful shutdown was successful log message
 	app.logger.Info("stopped server", "addr", srv.Addr)

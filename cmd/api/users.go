@@ -44,7 +44,7 @@ func (app application) registerUserHandler(w http.ResponseWriter, r *http.Reques
 		switch {
 		case errors.Is(data.ErrDuplicateEmail, err):
 			// TODO: prevent enumeration attacks
-			// returning such a message indicates that a user is legit
+			// returning such a message confirms that a user with the given email exists
 			// often leading to an attacker trying to compromise the user's account through social engineering
 			v.AddError("email", "a user with this email already exists")
 			app.failedValidationResponse(w, r, v.Errors)
@@ -54,13 +54,15 @@ func (app application) registerUserHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = app.mailer.Send(user.Email, "user_welcome.tmpl.html", user)
-	if err != nil {
-		app.internalServerErrorResponse(w, r, err)
-		return
-	}
+	app.background(func() {
+		if err = app.mailer.Send(user.Email, "user_welcome.tmpl.html", user); err != nil {
+			// don't send http responses inside background processes
+			// log the error instead
+			app.logger.Error(err.Error())
+		}
+	})
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{"user": user}, nil)
+	err = app.writeJSON(w, http.StatusAccepted, envelope{"user": user}, nil)
 	if err != nil {
 		app.internalServerErrorResponse(w, r, err)
 	}

@@ -84,8 +84,7 @@ func (m *Mailer) Send(recipient string, templateFile string, data any) error {
 		return err
 	}
 
-	err = msg.From(m.sender)
-	if err != nil {
+	if err = msg.From(m.sender); err != nil {
 		return err
 	}
 
@@ -98,8 +97,7 @@ func (m *Mailer) Send(recipient string, templateFile string, data any) error {
 	for i := 1; i <= 3; i++ {
 		// open a connection to the smtp server and send the message
 		// then close the connection
-		err = m.client.DialAndSend(msg)
-		if err == nil {
+		if err = m.client.DialAndSend(msg); err == nil {
 			return nil
 		}
 
@@ -107,5 +105,6 @@ func (m *Mailer) Send(recipient string, templateFile string, data any) error {
 			time.Sleep(500 * time.Millisecond)
 		}
 	}
+
 	return err
 }
