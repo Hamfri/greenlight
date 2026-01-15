@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"greenlight/internal/validator"
@@ -129,7 +130,7 @@ func (m UserModel) GetByEmail(email string) (*User, error) {
 func (m UserModel) Update(user *User) error {
 	query := `
 		UPDATE users
-		SET name = $1, email = $2, password = $3, activated = $4 version = version + 1
+		SET name = $1, email = $2, password = $3, activated = $4, version = version + 1
 		WHERE id = $5 AND version = $6
 		RETURNING version
 	`
@@ -159,6 +160,50 @@ func (m UserModel) Update(user *User) error {
 	}
 
 	return nil
+}
+
+func (m UserModel) GetUserByToken(tokenScope, tokenPlainText string) (*User, error) {
+	// calculate SHA-256 hash of the plaintext token provided by the client
+	// returns a byte array with length 32, not a slice
+	tokenHash := sha256.Sum256([]byte(tokenPlainText))
+
+	query := `
+		SELECT users.id, users.name, users.email, users.password, users.activated, users.created_at, users.version
+		FROM users
+		INNER JOIN tokens
+		ON users.id = tokens.user_id
+		WHERE tokens.hash = $1 -- vulnerable to timing attacks
+		AND tokens.scope = $2
+		AND tokens.expiry > $3
+	`
+
+	// [:] converts array to slice
+	args := []any{tokenHash[:], tokenScope, time.Now()}
+
+	var user User
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.Password.hash,
+		&user.Activated,
+		&user.CreatedAt,
+		&user.Version,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
 }
 
 type password struct {

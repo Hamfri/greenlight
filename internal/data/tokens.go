@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
+	"greenlight/internal/validator"
 	"time"
 )
 
@@ -13,10 +14,14 @@ const (
 	ScopeActivation = "activation"
 )
 
+func ValidatePlainTextToken(v *validator.Validator, token string) {
+	v.Check(len(token) == 26, "token", "must be 26 bytes long")
+}
+
 type Token struct {
 	PlainText string
 	Hash      []byte
-	userId    int
+	userID    int
 	Expiry    time.Time
 	Scope     string
 }
@@ -24,7 +29,7 @@ type Token struct {
 func generateToken(userID int, ttl time.Duration, scope string) *Token {
 	token := &Token{
 		PlainText: rand.Text(),
-		userId:    userID,
+		userID:    userID,
 		Expiry:    time.Now().Add(ttl),
 		Scope:     scope,
 	}
@@ -51,7 +56,7 @@ func (m TokenModel) Insert(token *Token) error {
 		VALUES ($1, $2, $3, $4)
 	`
 
-	args := []any{token.Hash, token.userId, token.Expiry, token.Scope}
+	args := []any{token.Hash, token.userID, token.Expiry, token.Scope}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -64,13 +69,14 @@ func (m TokenModel) Insert(token *Token) error {
 	return nil
 }
 
-func (m TokenModel) Delete(scope string, userId int) error {
+func (m TokenModel) Delete(scope string, userID int) error {
 	query := `
 		DELETE FROM tokens 
-		WHERE scope = $1 AND userId = $2
+		WHERE scope = $1 
+		AND user_id = $2
 	`
 
-	args := []any{scope, userId}
+	args := []any{scope, userID}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
