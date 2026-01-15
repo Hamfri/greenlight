@@ -2,9 +2,15 @@
 
 {{ define "plainBody"}}
 
-Hi {{ .Name }},
+Hi {{ .name }},
 
 Thanks for signing up. We at Greenlight are delighted to have you on board!
+
+To activate your account please send a request to `PUT /v1/users/activate` with the following JSON body:
+
+{"token": "{{ .activationToken }}"}
+
+Please note that this is a single use token that expires in 3 days.
 
 Many Thanks,
 Team Greenlight.
@@ -19,8 +25,13 @@ Team Greenlight.
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 </head>
 <body>
-    <p>Hi {{ .Name }},</p>
+    <p>Hi {{ .name }},</p>
     <p>Thanks for signing up. We at Greenlight are delighted to have you on board!</p>
+    <p>To activate your account please send a request to `PUT /v1/users/activate` with the following JSON body:</p>
+    <pre>
+       {"token": "{{ .activationToken }}"}
+    </pre>
+    <p>Please note that this is a single use token that expires in 3 days.</p>
     <p>Many Thanks,</p>
     <p>Team Greenlight.</p>
 </body>

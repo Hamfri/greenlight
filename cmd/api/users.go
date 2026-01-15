@@ -5,6 +5,7 @@ import (
 	"greenlight/internal/data"
 	"greenlight/internal/validator"
 	"net/http"
+	"time"
 )
 
 func (app application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -54,8 +55,19 @@ func (app application) registerUserHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	token, err := app.model.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
+	if err != nil {
+		app.internalServerErrorResponse(w, r, err)
+		return
+	}
+
 	app.background(func() {
-		if err = app.mailer.Send(user.Email, "user_welcome.tmpl.html", user); err != nil {
+		data := map[string]any{
+			"activationToken": token.PlainText,
+			"name":            user.Name,
+		}
+
+		if err = app.mailer.Send(user.Email, "user_welcome.tmpl.html", data); err != nil {
 			// don't send http responses inside background processes
 			// log the error instead
 			app.logger.Error(err.Error())
