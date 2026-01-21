@@ -15,6 +15,8 @@ var (
 	ErrDuplicateEmail = errors.New("duplicate email")
 )
 
+var AnonymousUser = &User{}
+
 type User struct {
 	ID        int       `json:"id"`
 	Name      string    `json:"name"`
@@ -23,6 +25,10 @@ type User struct {
 	Activated bool      `json:"activated"`
 	CreatedAt time.Time `json:"created_at"`
 	Version   int       `json:"-"`
+}
+
+func (u *User) IsAnonymous() bool {
+	return u == AnonymousUser
 }
 
 func ValidateEmail(v *validator.Validator, email string) {
@@ -94,7 +100,7 @@ func (m UserModel) Insert(user *User) error {
 
 func (m UserModel) GetByEmail(email string) (*User, error) {
 	query := `
-		SELECT name, email, password, activated, created_at, version 
+		SELECT id, name, email, password, activated, created_at, version 
 		FROM users 
 		WHERE email = $1
 	`
@@ -104,12 +110,11 @@ func (m UserModel) GetByEmail(email string) (*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
-	args := []any{}
-
-	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
+	err := m.DB.QueryRowContext(ctx, query, email).Scan(
 		&user.ID,
+		&user.Name,
 		&user.Email,
-		&user.Password,
+		&user.Password.hash,
 		&user.Activated,
 		&user.CreatedAt,
 		&user.Version,

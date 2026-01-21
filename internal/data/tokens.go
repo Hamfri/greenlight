@@ -11,7 +11,8 @@ import (
 
 // consts for token scope.
 const (
-	ScopeActivation = "activation"
+	ScopeActivation     = "activation"
+	ScopeAuthentication = "authentication"
 )
 
 func ValidatePlainTextToken(v *validator.Validator, token string) {
@@ -19,11 +20,11 @@ func ValidatePlainTextToken(v *validator.Validator, token string) {
 }
 
 type Token struct {
-	PlainText string
-	Hash      []byte
-	userID    int
-	Expiry    time.Time
-	Scope     string
+	PlainText string    `json:"token"`
+	Hash      []byte    `json:"-"`
+	userID    int       `json:"-"`
+	Expiry    time.Time `json:"expiry"`
+	Scope     string    `json:"-"`
 }
 
 func generateToken(userID int, ttl time.Duration, scope string) *Token {
