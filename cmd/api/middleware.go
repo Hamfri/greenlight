@@ -111,7 +111,7 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 		authorizationHeader := r.Header.Get("Authorization")
 
 		if authorizationHeader == "" {
-			app.contextSetUser(r, data.AnonymousUser)
+			r = app.contextSetUser(r, data.AnonymousUser)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -144,4 +144,38 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 		r = app.contextSetUser(r, user)
 		next.ServeHTTP(w, r)
 	})
+}
+
+// we HandlerFunc so that we can wrap the handlers directly
+func (app *application) requireAuthenticatedUser(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := app.contextGetUser(r)
+
+		if user.IsAnonymous() {
+			app.authenticationRequiredResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+
+	})
+}
+
+// checks that a user is both authenticated and activated
+// flow requireAuthenticatedUser -> requireActivatedUser
+// with this flow we only check if a user is activated when we have
+// real user
+func (app *application) requireActivatedUser(next http.HandlerFunc) http.HandlerFunc {
+	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := app.contextGetUser(r)
+
+		if !user.Activated {
+			app.inactiveAccountResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+
+	return app.requireAuthenticatedUser(fn)
 }
