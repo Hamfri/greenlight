@@ -45,7 +45,7 @@ type config struct {
 type application struct {
 	config config
 	logger *slog.Logger
-	model  data.Models
+	models data.Models
 	mailer *mailer.Mailer
 	wg     *sync.WaitGroup
 }
@@ -108,7 +108,7 @@ func main() {
 	app := &application{
 		config: cfg,
 		logger: logger,
-		model:  data.NewModels(db),
+		models: data.NewModels(db),
 		mailer: mailer,
 		wg:     &sync.WaitGroup{},
 	}

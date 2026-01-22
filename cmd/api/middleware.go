@@ -130,7 +130,7 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		user, err := app.model.Users.GetUserByToken(data.ScopeAuthentication, token)
+		user, err := app.models.Users.GetUserByToken(data.ScopeAuthentication, token)
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrRecordNotFound):
@@ -163,10 +163,9 @@ func (app *application) requireAuthenticatedUser(next http.HandlerFunc) http.Han
 
 // checks that a user is both authenticated and activated
 // flow requireAuthenticatedUser -> requireActivatedUser
-// with this flow we only check if a user is activated when we have
-// real user
+// with this flow we only check if a user is activated when we have real user
 func (app *application) requireActivatedUser(next http.HandlerFunc) http.HandlerFunc {
-	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fn := func(w http.ResponseWriter, r *http.Request) {
 		user := app.contextGetUser(r)
 
 		if !user.Activated {
@@ -175,7 +174,29 @@ func (app *application) requireActivatedUser(next http.HandlerFunc) http.Handler
 		}
 
 		next.ServeHTTP(w, r)
-	})
+	}
 
 	return app.requireAuthenticatedUser(fn)
+}
+
+// flow requireAuthenticatedUser -> requireActivatedUser -> requirePermission
+func (app *application) requirePermission(code data.Permission, next http.HandlerFunc) http.HandlerFunc {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		user := app.contextGetUser(r)
+
+		permissions, err := app.models.Permissions.GetUserPermissions(user.ID)
+		if err != nil {
+			app.internalServerErrorResponse(w, r, err)
+			return
+		}
+
+		if !permissions.Includes(code) {
+			app.notPermittedResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	}
+
+	return app.requireActivatedUser(fn)
 }

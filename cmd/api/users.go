@@ -40,7 +40,7 @@ func (app application) registerUserHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = app.model.Users.Insert(user)
+	err = app.models.Users.Insert(user)
 	if err != nil {
 		switch {
 		case errors.Is(data.ErrDuplicateEmail, err):
@@ -55,7 +55,13 @@ func (app application) registerUserHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	token, err := app.model.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
+	err = app.models.Permissions.AddUserPermissions(user.ID, data.PermissionMoviesRead)
+	if err != nil {
+		app.internalServerErrorResponse(w, r, err)
+		return
+	}
+
+	token, err := app.models.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
 	if err != nil {
 		app.internalServerErrorResponse(w, r, err)
 		return
@@ -99,7 +105,7 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	user, err := app.model.Users.GetUserByToken(data.ScopeActivation, input.PlainTextToken)
+	user, err := app.models.Users.GetUserByToken(data.ScopeActivation, input.PlainTextToken)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
@@ -113,7 +119,7 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 
 	user.Activated = true
 
-	err = app.model.Users.Update(user)
+	err = app.models.Users.Update(user)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrEditConflict):
@@ -124,7 +130,7 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err = app.model.Tokens.Delete(data.ScopeActivation, user.ID)
+	err = app.models.Tokens.Delete(data.ScopeActivation, user.ID)
 	if err != nil {
 		app.internalServerErrorResponse(w, r, err)
 		return
