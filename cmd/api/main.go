@@ -8,6 +8,7 @@ import (
 	"greenlight/internal/mailer"
 	"log/slog"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,6 +40,9 @@ type config struct {
 		username string
 		password string
 		sender   string
+	}
+	cors struct {
+		trustedOrigins []string
 	}
 }
 
@@ -77,6 +81,13 @@ func main() {
 	flag.StringVar(&cfg.smtp.username, "smtp-username", "fake-username", "SMTP username")
 	flag.StringVar(&cfg.smtp.password, "smtp-password", "fake-pwd", "SMTP password")
 	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "fake-sender", "SMTP sender")
+
+	flag.Func("trusted-cors", "Trusted cross origin resource sharing", func(val string) error {
+		// strings.Fields splits space separated strings into a slice
+		// slice is empty if trusted-cors is not provided or trusted-cors = ""
+		cfg.cors.trustedOrigins = strings.Fields(val)
+		return nil
+	})
 
 	flag.Parse()
 

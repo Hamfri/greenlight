@@ -6,6 +6,7 @@ import (
 	"greenlight/internal/data"
 	"greenlight/internal/validator"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -104,7 +105,7 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 
 func (app *application) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// indicates to caches that the response may vary
+		// Prevents serving the wrong Authorization headers from cache
 		// depending on the value of the Authorization header in the request
 		w.Header().Add("Vary", "Authorization")
 
@@ -199,4 +200,41 @@ func (app *application) requirePermission(code data.Permission, next http.Handle
 	}
 
 	return app.requireActivatedUser(fn)
+}
+
+// If trustedOrigins is not configured we default to `same-origin policy (SOP)`
+// otherwise we allow `cross-origin resource sharing (CORS)` to trustedOrigins
+func (app *application) enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Prevents serving the wrong CORS headers from cache
+		// Important never set this to null. Doing so allows attackers to use iframes to launch attacks
+		w.Header().Add("Vary", "Origin")
+		w.Header().Add("Vary", "Access-Control-Request-Method")
+
+		origin := r.Header.Get("origin")
+		if origin != "" {
+			if slices.Contains(app.config.cors.trustedOrigins, origin) {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+
+				// check if it is a preflight request
+				if r.Method == http.MethodOptions && r.Header.Get("Access-Control-Request-Method") != "" {
+					// set preflight response headers
+					w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, PUT, PATCH, DELETE")
+
+					// since we are allowing Authorization headers
+					// we cannot set `Access-Control-Allow-Origin: *`
+					// otherwise we expose ourselves to distributed brute-force attacks
+					w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+
+					// cache preflight for 60 seconds before refresh
+					// default is 5s on Chrome and Mozilla
+					w.Header().Set("Access-Control-Max-Age", (60 * time.Second).String())
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+			}
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
