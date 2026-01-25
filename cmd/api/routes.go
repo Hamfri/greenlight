@@ -1,6 +1,7 @@
 package main
 
 import (
+	"expvar"
 	"greenlight/internal/data"
 	"net/http"
 
@@ -17,6 +18,9 @@ func (app *application) routes() http.Handler {
 
 	router.HandlerFunc(http.MethodGet, "/v1/healthcheck", app.healthCheckHandler)
 
+	// improvement add metrics:read permission
+	router.Handler(http.MethodGet, "/v1/metrics", expvar.Handler())
+
 	router.HandlerFunc(http.MethodPost, "/v1/movies", app.requirePermission(data.PermissionMoviesWrite, app.createMovieHandler))
 	router.HandlerFunc(http.MethodGet, "/v1/movies", app.requirePermission(data.PermissionMoviesRead, app.listMovieHandler))
 	router.HandlerFunc(http.MethodGet, "/v1/movies/:id", app.requirePermission(data.PermissionMoviesRead, app.showMovieHandler))
@@ -29,6 +33,6 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPost, "/v1/tokens/authentication", app.createAuthenticationTokenHandler)
 
 	// apply middleware to all routes
-	// flow recoverPanic -> enableCORS -> rateLimit -> authenticate -> requireActivatedUser
-	return app.recoverPanic(app.enableCORS(app.rateLimit(app.authenticate(router))))
+	// flow metrics -> recoverPanic -> enableCORS -> rateLimit -> authenticate -> requireActivatedUser
+	return app.metrics(app.recoverPanic(app.enableCORS(app.rateLimit(app.authenticate(router)))))
 }
