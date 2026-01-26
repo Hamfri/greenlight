@@ -33,6 +33,6 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPost, "/v1/tokens/authentication", app.createAuthenticationTokenHandler)
 
 	// apply middleware to all routes
-	// flow metrics -> recoverPanic -> enableCORS -> rateLimit -> authenticate -> requireActivatedUser
+	// flow:- metrics -> recoverPanic -> enableCORS -> rateLimit -> authenticate -> requireActivatedUser
 	return app.metrics(app.recoverPanic(app.enableCORS(app.rateLimit(app.authenticate(router)))))
 }
