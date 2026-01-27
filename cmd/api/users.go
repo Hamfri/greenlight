@@ -43,7 +43,7 @@ func (app application) registerUserHandler(w http.ResponseWriter, r *http.Reques
 	err = app.models.Users.Insert(user)
 	if err != nil {
 		switch {
-		case errors.Is(data.ErrDuplicateEmail, err):
+		case errors.Is(err, data.ErrDuplicateEmail):
 			// TODO: prevent enumeration attacks
 			// returning such a message confirms that a user with the given email exists
 			// often leading to an attacker trying to compromise the user's account through social engineering

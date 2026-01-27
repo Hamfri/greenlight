@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"expvar"
 	"flag"
+	"fmt"
 	"greenlight/internal/data"
 	"greenlight/internal/mailer"
+	"greenlight/internal/vcs"
 	"log/slog"
 	"os"
 	"runtime"
@@ -19,7 +21,9 @@ import (
 	_ "github.com/lib/pq"
 )
 
-const version = "1.0.0"
+var (
+	version = vcs.Version()
+)
 
 // env args passed via cmd flags on app start
 type config struct {
@@ -65,7 +69,7 @@ func main() {
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 	// os.Getenv("GREENLIGHT_DB_DSN") // read from environment variables
-	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", "", "PostgreSQL DSN")
 
 	// DB connection pool settings from cmd-line flags
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
@@ -91,7 +95,14 @@ func main() {
 		return nil
 	})
 
+	displayVersion := flag.Bool("version", false, "Display version and exit")
+
 	flag.Parse()
+
+	if *displayVersion {
+		fmt.Printf("api version:\t%s\n", version)
+		os.Exit(0)
+	}
 
 	// structured logger that writes to the standard output stream
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))

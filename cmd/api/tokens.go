@@ -46,7 +46,7 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	_, err = user.Password.Matches(input.Password)
 	if err != nil {
 		switch {
-		case errors.Is(bcrypt.ErrMismatchedHashAndPassword, err):
+		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
 			app.invalidCredentialsResponse(w, r)
 		default:
 			app.internalServerErrorResponse(w, r, err)
