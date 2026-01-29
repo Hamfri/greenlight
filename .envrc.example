@@ -1,2 +1,3 @@
 # copy the contents of this file into .envrc
-export GREENLIGHT_DB_DSN=postgres://greenlight:W9oqWPKZpZJ8cISlvvl9EeLwwSj5@localhost/greenlight?sslmode=disable
+export GREENLIGHT_DB_DSN=postgres://greenlight:DB_PASSWORD@localhost/greenlight?sslmode=disable
+export PRODUCTION_HOST_IP=xxx.xxx.xxx.xxx

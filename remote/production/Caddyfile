@@ -1,0 +1,6 @@
+http://{{PRODUCTION_HOST_IP}} {
+    @metrics path /v1/metrics*
+    respond @metrics "Not Permitted" 403
+
+    reverse_proxy localhost:4000
+}
