@@ -13,6 +13,7 @@ import (
 const (
 	ScopeActivation     = "activation"
 	ScopeAuthentication = "authentication"
+	ScopePasswordReset  = "password-reset"
 )
 
 func ValidatePlainTextToken(v *validator.Validator, token string) {
