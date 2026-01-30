@@ -27,12 +27,13 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPatch, "/v1/movies/:id", app.requirePermission(data.PermissionMoviesWrite, app.updateMovieHandler))
 	router.HandlerFunc(http.MethodDelete, "/v1/movies/:id", app.requirePermission(data.PermissionMoviesWrite, app.deleteMovieHandler))
 
-	router.HandlerFunc(http.MethodPost, "/v1/users", app.registerUserHandler)
-	router.HandlerFunc(http.MethodPut, "/v1/users/activate", app.activateUserHandler)
-	router.HandlerFunc(http.MethodPut, "/v1/users/password", app.updateUserPasswordHandler)
+	router.HandlerFunc(http.MethodPost, "/v1/accounts/register", app.registerUserHandler)
+	router.HandlerFunc(http.MethodPut, "/v1/accounts/activate", app.activateUserHandler)
+	router.HandlerFunc(http.MethodPut, "/v1/accounts/password-reset", app.updateUserPasswordHandler)
 
-	router.HandlerFunc(http.MethodPost, "/v1/tokens/authentication", app.createAuthenticationTokenHandler)
-	router.HandlerFunc(http.MethodPost, "/v1/tokens/password-reset", app.createPasswordResetTokenHandler)
+	router.HandlerFunc(http.MethodPost, "/v1/tokens/accounts/login", app.createAuthenticationTokenHandler)
+	router.HandlerFunc(http.MethodPost, "/v1/tokens/accounts/forgot-password", app.createPasswordResetTokenHandler)
+	router.HandlerFunc(http.MethodPost, "/v1/tokens/accounts/resend-activation-token", app.createActivationTokenHandler)
 
 	// apply middleware to all routes
 	// flow:- metrics -> recoverPanic -> enableCORS -> rateLimit -> authenticate -> requireActivatedUser

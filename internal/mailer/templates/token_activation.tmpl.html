@@ -1,0 +1,33 @@
+{{ define "subject" }} Activate your Greenlight account {{ end }}
+{{ define "plainBody" }}
+    Hey {{ .name }},
+
+    Invoke `PUT /v1/accounts/activate` request with the following JSON body to activate your account:
+
+    {"token": "{{ .activationToken }}"}
+
+    Please note that this is a single-use token and will expire in 3 days.
+
+    Many Thanks,
+    Team Greenlight,
+{{ end }}
+
+{{ define "htmlBody" }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+    <p>Hey {{ .name }}, </p>
+    <p>Invoke `PUT /v1/accounts/activate` request with the following JSON body to activate your account:</p>
+    <pre>
+        <code>{"token": "{{ .activationToken }}"}</code>
+    </pre>
+    <p>Please note that this is a single-use token and will expire in 3 days.</p>
+    <p>Many Thanks,</p>
+    <p>Team Greenlight,</p>
+</body>
+</html>
+{{ end }}
